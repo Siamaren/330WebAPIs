@@ -14,6 +14,7 @@
   "author": "Katherine Weaver",
   "license": "UNLICENSED",
   "dependencies": {
-    "goodreads-api-node": "0.0.4"
+    "goodreads-api-node": "0.0.4",
+    "google-books-search": "0.3.1"
   }
 }
