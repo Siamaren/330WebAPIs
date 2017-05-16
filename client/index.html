@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>330 Web APIs</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css?family=Metamorphous|PT+Serif|Playfair+Display" rel="stylesheet">
+    <style>
+        body{
+            width: 800px;
+            margin: auto;
+            background-color:#DDD8C9;
+        }
+        h1{
+            font-family: 'Metamorphous', cursive;
+        }
+        h2{
+            font-family: 'PT Serif', serif;
+        }
+        h3{
+            font-family: 'Playfair Display', serif;
+            color: #350
+        }
+        a, a:visited{
+            color: #350
+        }
+        a:hover{
+            color: #793
+        }
+        .book{
+            background-color:antiquewhite;
+            padding: 5px;
+            margin: 10px;
+            width:800px;
+            border: 2px solid #350;
+            border-radius: 5px;
+        }
+        #bookImage{
+            float:left;
+        }
+        #booklist, #bookDescription{
+            background-color:antiquewhite;
+            padding: 20px;
+            margin: 5px;
+        }
+        #bookDescription{
+            border: 2px solid #350;
+            border-radius: 5px;
+        }
+        #buttonStuff{
+            width:500px;
+            margin:auto;
+
+        }
+        #header{
+            text-align:center;
+            margin: auto;
+        }
+        #viewerCanvas{
+            margin:auto;
+        }
+        #goodreads-widget {
+            font-family: georgia, serif;
+            padding: 18px 0;
+            width:565px;
+            margin: auto;
+        }
+        #goodreads-widget h1 {
+            font-weight:normal;
+            font-size: 16px;
+            border-bottom: 1px solid #BBB596;
+            margin-bottom: 0;
+        }
+        #goodreads-widget a {
+            text-decoration: none;
+            color:#660;
+        }
+        iframe{
+            background-color: #fff;
+        }
+        #goodreads-widget a:hover { text-decoration: underline; }
+        #goodreads-widget a:active {
+            color:#660;
+        }
+        #gr_footer {
+            width: 100%;
+            border-top: 1px solid #BBB596;
+            text-align: right;
+        }
+        #goodreads-widget .gr_branding{
+            color: #382110;
+            font-size: 11px;
+            text-decoration: none;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+    </style>
+    <script type="text/javascript" src="https://www.google.com/books/jsapi.js"></script><!--embedded viewr API-->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><!--jQuery-->
+    <script>
+        //IIFE
+        (function(){
+            "use strict";
+
+            var books = [];//holds current data
+            var isbn;//isbn of chosen book
+            var bookTitle;//title of chosen book
+            var viewer;//previewer to reload for chosen book
+
+            //run when finished loading
+            $(document).ready(function(){
+                
+                //load google books
+                google.books.load();
+
+                //click event for dynamically created links to books
+                $('#bookList').on('click','.titleLink',function(){
+                        var index = $(this).attr("data-bookindex");
+                        index = parseInt(index);
+
+                        bookTitle = books[index].title;
+                        localStorage.setItem("bookTitle",bookTitle);
+                        if(books[index].industryIdentifiers){
+                            isbn = undefined;
+                            //find ISBN 10
+                            for(var  i = 0; i < books[index].industryIdentifiers.length; i++){
+                                if(books[index].industryIdentifiers[i].type == "ISBN_10"){
+                                    isbn = books[index].industryIdentifiers[i].identifier
+                                }
+                            }
+
+                            //if isbn found...
+                            if(isbn){
+                                //load embedded preview
+                                viewer = new google.books.DefaultViewer(document.getElementById('viewerCanvas'));
+                                viewer.load('ISBN:'+isbn);
+                                $('#viewerCanvas').slideDown(600,function(){$(this).css("display","block")});
+
+                                //change reviews
+                                var tempTitle = bookTitle
+                                tempTitle = tempTitle.replace(" ",'+');
+                                var src = 'https://www.goodreads.com/api/reviews_widget_iframe?did=DEVELOPER_ID&format=html&header_text=Goodreads+reviews+for+'+tempTitle+'&isbn='+isbn+'&links=660&review_back=fff&stars=000&text=000';
+                                $('#the_iframe').attr("src", src);
+                                $('#goodreads-widget').slideDown(600,function(){$(this).css("display","block")});
+
+                                var action = "/isbn";
+                                var data = "isbn=" + isbn;
+                                //get data from goodreads using isbn
+                                $.ajax({
+                                    cache: false,
+                                    type: "get", 
+                                    url: action,//title or other search to be used on created server
+                                    data: data,//set data to the query string we built
+                                    dataType: "json",
+                                    success: function (result, status, xhr) {
+                                        console.log(result);
+                                        if(result.search.results.work){
+                                            var img = result.search.results.work.best_book.image_url;
+                                        }
+                                        var html = "<img src='"+img+"'>";
+                                        //display image on page
+                                        $('#bookImage').html(html);
+                                    },
+                                    error: function (error, status, xhr) {
+                                        console.log("error + "+status);
+                                    }
+                                });
+                            }else{
+                                //hide previewer if no preview found
+                                $('#viewerCanvas').slideUp(600,function(){$(this).css("display","none")});
+                            }
+                        }
+
+                        var html = "<div id='bookImage'>"+$('#bookImage').html()+"</div>";
+                        html += "<h2>"+books[index].title+"</h2>";
+                        html+="<p id='authors'>Author: ";
+                        if(books[index].authors && books[index].authors.length > 0){
+                            html+=books[index].authors[0];
+                            for(var j = 1; j < books[index].authors.length; j++){
+                                html+=", "+books[index].authors[j];
+                            }
+                        }
+                        html+="</p>";
+                        if(books[index].averageRating){
+                            html+="<p id='rating'>Average Rating: "+books[index].averageRating+" / 5</p>";
+                        }
+                        if(books[index].description){
+                            html+="<p id='description'>"+books[index].description+"</p>";
+                        }
+                        if(books[index].publishDate){
+                            html+="<p id='pubDate'>Publication Date: "+books[index].publishDate+"</p>";
+                        }
+                        if(books[index].pageCount){
+                            html+="<p id='pages'>Pages: "+books[index].pageCount+"</p>";
+                        }
+
+
+                        $('#bookDescription').html(html);//fill
+                        $('#bookList').slideDown(600,function(){$(this).css("display","none")});
+                        $('#bookDescription').slideUp(600,function(){$(this).css("display","block")});
+                });
+
+
+                //click event for the search bar
+                $("#searchButton").click(function(){
+                    var action = "/title";
+                    //var term = encodeURIComponent($("#searchTerm").val());
+                    
+                    var title = $('#searchterm').val();
+                    var data = "title=" + title;
+
+                
+                    $.ajax({
+                    cache: false,
+                    type: "get", 
+                    url: action,//title or other search to be used on created server
+                    //set data to the query string we built
+                    data: data,
+                    dataType: "json",
+                    success: function (result, status, xhr) {
+                        //var results = JSON.stringify(result);
+                        books = result;
+                        //console.log("json"+results);
+
+                        //display on page
+                        displayBooks();
+                    },
+                    error: function (error, status, xhr) {
+                        //convert to string we can see on screen
+                        //var results = JSON.stringify(error);
+                        console.log("error + "+status);
+                    }
+                    });
+                });                
+
+                //load previewer and other data
+                function init(){
+                    //create window for previewer
+                    viewer = new google.books.DefaultViewer(document.getElementById('viewerCanvas'));
+                    //call this --V-- to load a preview for the given ISBN (can it do by title?)
+                    viewer.load('ISBN:0738531367');
+
+                    //check for local data
+                    bookTitle = localStorage.getItem("bookTitle");
+                    if(bookTitle){
+                        //set search bar
+                        $('#searchterm').val(bookTitle);
+                    }
+                };
+                
+                //display the retrieved book titles and authors
+                function displayBooks(){
+                    var html = "";
+                    for(var i = 0; i < books.length; i++){
+                        var book = books[i];
+                        html += "<div class='book'>"
+                        html+="<h3><a href='#' class='titleLink' data-bookIndex='"+i+"'>"+book.title+"</a></h3>";
+                        html+="<p>Author: "
+                        if(book.authors && book.authors.length > 0){
+                            html+=book.authors[0];
+                            for(var j = 1; j < book.authors.length; j++){
+                                html+=", "+book.authors[j];
+                            }
+                        }
+                        html+="</p>";
+                        html+="</div>";
+                    }
+                    $('#bookList').html(html);//fill
+                    $('#bookList').slideDown(600,function(){$(this).css("display","block")});
+                    $('#bookDescription').slideUp(600,function(){$(this).css("display","none")});
+                    $('#goodreads-widget').slideUp(600,function(){$(this).css("display","none")});
+                    $('#viewerCanvas').slideUp(600,function(){$(this).css("display","none")});
+                };
+                
+
+                google.books.setOnLoadCallback(init);//calls init when api finishes loading
+            });
+        }());
+    </script>
+  </head>
+  <body>
+      <div id="header"><h1>Book Previewer - 330 API Project</h1></div>
+      <!--button-->
+      <div id="buttonStuff">
+            <label>Book Title:</label>
+            <input id="searchterm" type="text" size="20" maxlength="40" autofocus value="" />
+            <button id="searchButton">Search</button>
+      </div>
+      <!--book list to choose from after search-->
+        <div id="bookList" style="display: none"></div>
+      <!--book description using isbn after search, replaces booklist by display: none-->  
+        <div id="bookDescription" style="display: none">
+            <div id="bookImage"></div>    
+        </div>  
+      <!--review widget from https://www.goodreads.com/api/reviews_demo_widget_iframe (I only modify the link and don't expect this to count for a grade)-->
+        <div id="goodreads-widget" style="display:none;">
+            <div><h3>Reviews from Goodreads</h3></div>
+            <iframe id="the_iframe" src="https://www.goodreads.com/api/reviews_widget_iframe?did=DEVELOPER_ID&format=html&header_text=Goodreads+reviews+for+The+Adventures+of+Huckleberry+Finn&isbn=0142437174&links=660&review_back=fff&stars=000&text=000" width="565" height="400" frameborder="0"></iframe>
+            <div id="gr_footer">
+                <a class="gr_branding" target="_blank" href="https://www.goodreads.com">Reviews from Goodreads.com</a>
+            </div>
+        </div>
+
+        <!--book preview-->
+        <div id="viewerCanvas" style="width: 750px; height: 800px; display:none;"></div>
+  </body>
+</html>  
